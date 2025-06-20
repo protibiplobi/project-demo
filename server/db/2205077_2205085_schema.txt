@@ -1,0 +1,207 @@
+CREATE TABLE ServiceUser (
+    UserID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Name VARCHAR2(100) NOT NULL,
+    Email VARCHAR2(50) NOT NULL UNIQUE,
+    PasswordHash VARCHAR2(256) NOT NULL,
+    Phone CHAR(11) UNIQUE,
+    DateOfBirth DATE,
+    Gender VARCHAR2(6),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ProfileImage NUMBER(10)
+);
+
+CREATE TABLE Customer (
+    CustomerID NUMBER PRIMARY KEY,
+    CONSTRAINT fk_customer_user FOREIGN KEY (CustomerID) REFERENCES ServiceUser(UserID)
+);
+
+CREATE TABLE Seller (
+    SellerID NUMBER PRIMARY KEY,
+    StoreName VARCHAR2(100) NOT NULL,
+    StoreDescription VARCHAR2(500),
+    CONSTRAINT fk_seller_user FOREIGN KEY (SellerID) REFERENCES ServiceUser(UserID)
+);
+
+CREATE TABLE Category (
+    CategoryID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Name VARCHAR2(100) NOT NULL UNIQUE,
+    ParentID NUMBER,
+    CONSTRAINT fk_parent_category FOREIGN KEY (ParentID) REFERENCES Category(CategoryID)
+);
+
+CREATE TABLE PaymentMethod (
+    PaymentMethodID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    UserID NUMBER NOT NULL,
+    MethodType VARCHAR2(10) NOT NULL,
+    CONSTRAINT fk_method_user FOREIGN KEY (UserID) REFERENCES ServiceUser(UserID)
+);
+
+CREATE TABLE Payment (
+    PaymentID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CustomerID NUMBER,
+    SellerID NUMBER,
+    PaymentDate DATE DEFAULT SYSDATE,
+    Amount NUMBER NOT NULL CHECK (Amount >= 0),
+    PaymentMethod NUMBER,
+    Status CHAR(1) NOT NULL,
+    CONSTRAINT fk_payment_customer FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID),
+    CONSTRAINT fk_payment_seller FOREIGN KEY (SellerID) REFERENCES Seller(SellerID),
+    CONSTRAINT fk_payment_method FOREIGN KEY (PaymentMethod) REFERENCES PaymentMethod(PaymentMethodID)
+);
+
+CREATE TABLE Product (
+    ProductID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    SellerID NUMBER NOT NULL,
+    Name VARCHAR2(100) NOT NULL,
+    Description VARCHAR2(1000),
+    Price NUMBER NOT NULL CHECK (Price >= 0),
+    Quantity NUMBER NOT NULL CHECK (Quantity >= 0),
+    CategoryID NUMBER,
+    AverageRating NUMBER,
+    CONSTRAINT fk_product_seller FOREIGN KEY (SellerID) REFERENCES Seller(SellerID),
+    CONSTRAINT fk_product_category FOREIGN KEY (CategoryID) REFERENCES Category(CategoryID)
+);
+
+CREATE TABLE Image (
+    ImageID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ImageURL VARCHAR2(250) NOT NULL UNIQUE
+);
+
+CREATE TABLE ProductImage (
+    ImageID NUMBER,
+    ProductID NUMBER,
+    PRIMARY KEY (ImageID, ProductID),
+    CONSTRAINT fk_pi_image FOREIGN KEY (ImageID) REFERENCES Image(ImageID),
+    CONSTRAINT fk_pi_product FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+);
+
+CREATE TABLE TaxRates (
+    TaxID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    TaxRate NUMBER NOT NULL CHECK (TaxRate >= 0)
+);
+
+CREATE TABLE GiftCard (
+    GiftCardID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    GiftCardName VARCHAR2(10) NOT NULL,
+    GiftCardValue NUMBER NOT NULL CHECK (GiftCardValue >= 0),
+    ExpiryDate DATE
+);
+
+CREATE TABLE Cities (
+    CityID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    Division VARCHAR2(30) NOT NULL,
+    City VARCHAR2(30) NOT NULL
+);
+
+CREATE TABLE ShippingAddress (
+    AddressID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CustomerID NUMBER NOT NULL,
+    StreetAddress VARCHAR2(100) NOT NULL,
+    CityID NUMBER NOT NULL,
+    CONSTRAINT fk_address_customer FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID),
+    CONSTRAINT fk_address_city FOREIGN KEY (CityID) REFERENCES Cities(CityID)
+);
+
+CREATE TABLE Shipment (
+    ShipmentID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CourierName VARCHAR2(100),
+    ShippingDate DATE,
+    ShippingAddressID NUMBER,
+    ArrivalDate DATE,
+    Status CHAR(1) NOT NULL,
+    CONSTRAINT fk_shipment_address FOREIGN KEY (ShippingAddressID) REFERENCES ShippingAddress(AddressID)
+);
+
+CREATE TABLE ProductOrder (
+    OrderID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CustomerID NUMBER NOT NULL,
+    OrderDate DATE DEFAULT SYSDATE,
+    SubTotal NUMBER NOT NULL CHECK (SubTotal >= 0),
+    Status CHAR(1) NOT NULL,
+    PaymentID NUMBER,
+    ShipmentID NUMBER,
+    TaxID NUMBER,
+    GiftCard NUMBER,
+    Total NUMBER NOT NULL CHECK (Total >= 0),
+    CONSTRAINT fk_order_customer FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID),
+    CONSTRAINT fk_order_payment FOREIGN KEY (PaymentID) REFERENCES Payment(PaymentID),
+    CONSTRAINT fk_order_shipment FOREIGN KEY (ShipmentID) REFERENCES Shipment(ShipmentID),
+    CONSTRAINT fk_order_tax FOREIGN KEY (TaxID) REFERENCES TaxRates(TaxID),
+    CONSTRAINT fk_order_giftcard FOREIGN KEY (GiftCard) REFERENCES GiftCard(GiftCardID)
+);
+
+CREATE TABLE OrderItem (
+    OrderItemID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    OrderID NUMBER NOT NULL,
+    ProductID NUMBER NOT NULL,
+    Quantity NUMBER NOT NULL CHECK (Quantity > 0),
+    Price NUMBER NOT NULL CHECK (Price >= 0),
+    Total NUMBER NOT NULL CHECK (Total >= 0),
+    CONSTRAINT fk_oi_order FOREIGN KEY (OrderID) REFERENCES ProductOrder(OrderID),
+    CONSTRAINT fk_oi_product FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+);
+
+CREATE TABLE BankDetails (
+    PaymentMethodID NUMBER PRIMARY KEY,
+    BankName VARCHAR2(30) NOT NULL,
+    SwiftCode VARCHAR2(20),
+    AccountNumber VARCHAR2(20) NOT NULL,
+    AccountHolderName VARCHAR2(30) NOT NULL,
+    CONSTRAINT fk_bank_method FOREIGN KEY (PaymentMethodID) REFERENCES PaymentMethod(PaymentMethodID)
+);
+
+CREATE TABLE BkashDetails (
+    PaymentMethodID NUMBER PRIMARY KEY,
+    BKashNumber VARCHAR2(10) NOT NULL UNIQUE,
+    BKashAccountName VARCHAR2(30) NOT NULL,
+    CONSTRAINT fk_bkash_method FOREIGN KEY (PaymentMethodID) REFERENCES PaymentMethod(PaymentMethodID)
+);
+
+CREATE TABLE CardDetails (
+    PaymentMethodID NUMBER PRIMARY KEY,
+    CardNumber VARCHAR2(20) NOT NULL UNIQUE,
+    CardHolderName VARCHAR2(30) NOT NULL,
+    ExpiryDate DATE NOT NULL,
+    CONSTRAINT fk_card_method FOREIGN KEY (PaymentMethodID) REFERENCES PaymentMethod(PaymentMethodID)
+);
+
+CREATE TABLE Review (
+    ReviewID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ProductID NUMBER NOT NULL,
+    CustomerID NUMBER NOT NULL,
+    RatingValue NUMBER(5) NOT NULL CHECK (RatingValue BETWEEN 1 AND 5),
+    CommentText VARCHAR2(500),
+    ImageID NUMBER,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_review_product FOREIGN KEY (ProductID) REFERENCES Product(ProductID),
+    CONSTRAINT fk_review_customer FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID)
+);
+
+CREATE TABLE Reply (
+    ReplyID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ReviewID NUMBER NOT NULL,
+    UserID NUMBER NOT NULL,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CommentText VARCHAR2(500) NOT NULL,
+    ParentReplyID NUMBER,
+    CONSTRAINT fk_reply_review FOREIGN KEY (ReviewID) REFERENCES Review(ReviewID),
+    CONSTRAINT fk_reply_user FOREIGN KEY (UserID) REFERENCES ServiceUser(UserID),
+    CONSTRAINT fk_parent_reply FOREIGN KEY (ParentReplyID) REFERENCES Reply(ReplyID)
+);
+
+CREATE TABLE WishlistItem (
+    WishListID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CustomerID NUMBER NOT NULL,
+    ProductID NUMBER NOT NULL,
+    CONSTRAINT fk_wishlist_customer FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID),
+    CONSTRAINT fk_wishlist_product FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+);
+
+CREATE TABLE CartItems (
+    CartItemID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    CustomerID NUMBER NOT NULL,
+    ProductID NUMBER NOT NULL,
+    Quantity NUMBER NOT NULL CHECK (Quantity > 0),
+    CONSTRAINT fk_cart_customer FOREIGN KEY (CustomerID) REFERENCES Customer(CustomerID),
+    CONSTRAINT fk_cart_product FOREIGN KEY (ProductID) REFERENCES Product(ProductID)
+);
